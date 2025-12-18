@@ -7,7 +7,9 @@ import (
 )
 
 func main() {
-	p := gomoku.Point{X: 7, Y: 7}
-	fmt.Println("Point:", p)
-	fmt.Println("Stone:", gomoku.Black)
+	// Пример использования доски Гомоку, дожно вернуть "●"
+	b := gomoku.NewBoard(15)
+	_ = b.Set(gomoku.Point{X: 7, Y: 7}, gomoku.Black)
+	stone, _ := b.Get(gomoku.Point{X: 7, Y: 7})
+	fmt.Println(stone)
 }
