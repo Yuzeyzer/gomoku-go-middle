@@ -1,7 +1,13 @@
 package main
 
-import "fmt"
+import (
+	"fmt"
+
+	"github.com/yuzeyzer/gomoku/internal/gomoku"
+)
 
 func main() {
-	fmt.Println("Gomoku started")
+	p := gomoku.Point{X: 7, Y: 7}
+	fmt.Println("Point:", p)
+	fmt.Println("Stone:", gomoku.Black)
 }
