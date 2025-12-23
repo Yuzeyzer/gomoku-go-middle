@@ -18,6 +18,13 @@
             color: #e7eef7;
         }
 
+        .cell.preview {
+            outline: 2px dashed #3fa9f5;
+            border-color: #3fa9f5;
+            opacity: 0.85;
+        }
+
+
         .wrap {
             max-width: 980px;
             margin: 0 auto;
@@ -163,6 +170,47 @@
             render();
         }
 
+        function inBounds(x, y) {
+            return y >= 0 && y < state.size && x >= 0 && x < state.size;
+        }
+
+        function collectLine(x, y, dx, dy, stone) {
+            const pts = [];
+            let cx = x + dx;
+            let cy = y + dy;
+
+            while (inBounds(cx, cy) && state.board[cy][cx] === stone) {
+                pts.push([cx, cy]);
+                cx += dx;
+                cy += dy;
+            }
+            return pts;
+        }
+
+        function getPotentialLine(x, y, stone) {
+            const dirs = [
+                [1, 0],
+                [0, 1],
+                [1, 1],
+                [1, -1],
+            ];
+
+            let best = [];
+
+            for (const [dx, dy] of dirs) {
+                const neg = collectLine(x, y, -dx, -dy, stone);
+                const pos = collectLine(x, y, dx, dy, stone);
+                const line = [...neg.reverse(), [x, y], ...pos];
+
+                if (line.length > best.length) {
+                    best = line;
+                }
+            }
+
+            return best;
+        }
+
+
         function render() {
             if (!state) return;
 
@@ -178,6 +226,25 @@
                 for (let x = 0; x < state.size; x++) {
                     const s = state.board[y][x];
                     const btn = document.createElement('button');
+
+                    // hover-подсветка потенциальной линии
+                    if (s === 0 && state.winner === 0) {
+                        btn.addEventListener('mouseenter', () => {
+                            const line = getPotentialLine(x, y, state.turn);
+                            for (const [lx, ly] of line) {
+                                const idx = ly * state.size + lx;
+                                const cell = elBoard.children[idx];
+                                if (cell) cell.classList.add('preview');
+                            }
+                        });
+
+                        btn.addEventListener('mouseleave', () => {
+                            for (const cell of elBoard.children) {
+                                cell.classList.remove('preview');
+                            }
+                        });
+                    }
+
 
                     btn.className = 'cell';
                     btn.type = 'button';
