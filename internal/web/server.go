@@ -3,6 +3,7 @@ package web
 import (
 	"embed"
 	"encoding/json"
+	"io/fs"
 	"net/http"
 	"sync"
 
@@ -11,6 +12,16 @@ import (
 
 //go:embed static/*
 var staticFS embed.FS
+
+var staticSub fs.FS
+
+func init() {
+	var err error
+	staticSub, err = fs.Sub(staticFS, "static")
+	if err != nil {
+		panic(err)
+	}
+}
 
 type Server struct {
 	mu   sync.Mutex
@@ -26,9 +37,8 @@ func NewServer(size int) *Server {
 func (s *Server) Handler() http.Handler {
 	mux := http.NewServeMux()
 
-	mux.Handle("/", http.FileServer(http.FS(staticFS)))
+	mux.Handle("/", http.FileServer(http.FS(staticSub)))
 	mux.HandleFunc("/api/reset", s.handleReset)
-
 	mux.HandleFunc("/api/state", s.handleState)
 	mux.HandleFunc("/api/move", s.handleMove)
 
@@ -62,6 +72,14 @@ func (s *Server) handleState(w http.ResponseWriter, r *http.Request) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 
+	ai := r.URL.Query().Get("ai")
+
+	if ai == "easy" {
+		s.game.AIDifficulty = gomoku.AIEasy
+	} else {
+		s.game.AIDifficulty = gomoku.AINormal
+	}
+
 	writeJSON(w, http.StatusOK, s.snapshotLocked())
 }
 
@@ -76,6 +94,11 @@ func (s *Server) handleReset(w http.ResponseWriter, r *http.Request) {
 
 	size := s.game.Board.Size()
 	s.game = gomoku.NewGame(size)
+
+	ai := r.URL.Query().Get("ai")
+	if ai == "easy" {
+		s.game.AIDifficulty = gomoku.AIEasy
+	}
 
 	writeJSON(w, http.StatusOK, s.snapshotLocked())
 }
@@ -95,13 +118,27 @@ func (s *Server) handleMove(w http.ResponseWriter, r *http.Request) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 
+	if s.game.Winner != gomoku.Empty {
+		writeJSON(w, http.StatusBadRequest, errorResponse{Error: "game is over"})
+		return
+	}
+
+	// Ход человека: он играет за чёрных
+	if s.game.Turn != gomoku.Black {
+		writeJSON(w, http.StatusBadRequest, errorResponse{Error: "not your turn"})
+		return
+	}
+
+	// 1) Ход человека
 	if err := s.game.Play(gomoku.Point{X: req.X, Y: req.Y}); err != nil {
 		writeJSON(w, http.StatusBadRequest, errorResponse{Error: err.Error()})
 		return
 	}
 
-	// Ход AI типо
-	s.game.AIMove()
+	// 2) Один ответный ход AI (за белых)
+	if s.game.Turn == gomoku.White && s.game.Winner == gomoku.Empty {
+		s.game.AIMove()
+	}
 
 	writeJSON(w, http.StatusOK, s.snapshotLocked())
 }

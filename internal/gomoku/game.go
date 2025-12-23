@@ -2,6 +2,14 @@ package gomoku
 
 import "errors"
 
+// AIDifficulty определяет уровень сложности AI.
+type AIDifficulty int
+
+const (
+	AIEasy AIDifficulty = iota
+	AINormal
+)
+
 var (
 	ErrGameOver    = errors.New("игра окончена")
 	ErrInvalidTurn = errors.New("недопустимый ход")
@@ -9,22 +17,24 @@ var (
 
 // Game хранит состояние игры.
 type Game struct {
-	Board       *Board
-	Turn        Stone
-	Winner      Stone
-	Moves       int
-	WinningLine []Point // координаты победной линии (обычно 5 точек)
+	Board        *Board
+	Turn         Stone
+	Winner       Stone
+	Moves        int
+	WinningLine  []Point // координаты победной линии (5 точек)
+	AIDifficulty AIDifficulty
 }
 
 // NewGame создаёт новую игру с пустой доской.
 // По умолчанию первыми ходят чёрные.
 func NewGame(size int) *Game {
 	return &Game{
-		Board:       NewBoard(size),
-		Turn:        Black,
-		Winner:      Empty,
-		Moves:       0,
-		WinningLine: nil,
+		Board:        NewBoard(size),
+		Turn:         Black,
+		Winner:       Empty,
+		Moves:        0,
+		WinningLine:  nil,
+		AIDifficulty: AINormal,
 	}
 }
 
@@ -128,35 +138,45 @@ func (g *Game) collectInDirection(p Point, s Stone, dx, dy int) []Point {
 	return points
 }
 
-// AIMove типо делает ход за White, если сейчас его очередь.
-// Использует простую эвристику: выиграть → заблокировать → сыграть рядом.
-func (g *Game) AIMove() {
-	if g.Winner != Empty || g.Turn != White {
-		return
-	}
-
-	// 1. Попытка выиграть
+func (g *Game) aiNormal() {
+	// 1) Попытка выиграть за White
 	if p, ok := g.findBestMove(White); ok {
 		_ = g.Play(p)
 		return
 	}
 
-	// 2. Попытка заблокировать победу чёрных
+	// 2) Попытка заблокировать победу Black
 	if p, ok := g.findBestMove(Black); ok {
 		_ = g.Play(p)
 		return
 	}
 
-	// 3. Иначе — первый доступный ход рядом с центром
+	g.aiFallback()
+}
+
+func (g *Game) aiEasy() {
+	size := g.Board.Size()
+
+	for y := 0; y < size; y++ {
+		for x := 0; x < size; x++ {
+			p := Point{X: x, Y: y}
+			st, _ := g.Board.Get(p)
+			if st == Empty {
+				_ = g.Play(p)
+				return
+			}
+		}
+	}
+}
+
+func (g *Game) aiFallback() {
 	size := g.Board.Size()
 	center := size / 2
 
 	for r := 0; r < size; r++ {
 		for dy := -r; dy <= r; dy++ {
 			for dx := -r; dx <= r; dx++ {
-				x := center + dx
-				y := center + dy
-				p := Point{X: x, Y: y}
+				p := Point{X: center + dx, Y: center + dy}
 				if g.Board.InBounds(p) {
 					st, _ := g.Board.Get(p)
 					if st == Empty {
@@ -166,6 +186,25 @@ func (g *Game) AIMove() {
 				}
 			}
 		}
+	}
+}
+
+// AIMove типо делает ход за White, если сейчас его очередь.
+// Использует простую эвристику: выиграть → заблокировать → сыграть рядом.
+// AIMove делает ход за White, если сейчас его очередь.
+// Использует простую эвристику: выиграть → заблокировать → fallback.
+func (g *Game) AIMove() {
+	if g.Winner != Empty || g.Turn != White {
+		return
+	}
+
+	switch g.AIDifficulty {
+	case AIEasy:
+		g.aiEasy()
+	case AINormal:
+		g.aiNormal()
+	default:
+		g.aiNormal()
 	}
 }
 

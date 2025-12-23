@@ -214,8 +214,8 @@
         function render() {
             if (!state) return;
 
-            elTurn.textContent = `Turn: ${stoneToName(state.turn)}`;
-            elMoves.textContent = `Moves: ${state.moves}`;
+            elTurn.textContent = `Ход: ${stoneToName(state.turn)}`;
+            elMoves.textContent = `Количество ходов: ${state.moves}`;
             elBoard.style.gridTemplateColumns = `repeat(${state.size}, 34px)`;
 
             elBoard.innerHTML = "";
@@ -250,7 +250,11 @@
                     btn.type = 'button';
                     btn.textContent = stoneToChar(s);
 
-                    if (winSet.has(`${x},${y}`)) btn.classList.add('win');
+                    if (winSet.has(`${x},${y}`)) {
+                        btn.classList.add('win');
+                        const winnerPill = document.getElementById('winnerPill');
+                        winnerPill.textContent = `Победитель: ${stoneToName(state.winner)}`;
+                    }
 
                     if (s !== 0) btn.setAttribute('disabled', 'true');
 
