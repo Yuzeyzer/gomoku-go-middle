@@ -20,8 +20,8 @@ func (s Stone) String() string {
 	}
 }
 
-// Point кординаты на доске.
+// Point представляет координату на доске.
 type Point struct {
-	X int
-	Y int
+	X int `json:"x"`
+	Y int `json:"y"`
 }

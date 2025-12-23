@@ -172,7 +172,7 @@
 
             elBoard.innerHTML = "";
 
-            const winSet = new Set((state.winningLine || []).map(p => `${p.X},${p.Y}`));
+            const winSet = new Set((state.winningLine || []).map(p => `${p.x},${p.y}`));
 
             for (let y = 0; y < state.size; y++) {
                 for (let x = 0; x < state.size; x++) {
