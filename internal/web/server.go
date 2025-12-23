@@ -27,6 +27,7 @@ func (s *Server) Handler() http.Handler {
 	mux := http.NewServeMux()
 
 	mux.Handle("/", http.FileServer(http.FS(staticFS)))
+	mux.HandleFunc("/api/reset", s.handleReset)
 
 	mux.HandleFunc("/api/state", s.handleState)
 	mux.HandleFunc("/api/move", s.handleMove)
@@ -60,6 +61,21 @@ func (s *Server) handleState(w http.ResponseWriter, r *http.Request) {
 
 	s.mu.Lock()
 	defer s.mu.Unlock()
+
+	writeJSON(w, http.StatusOK, s.snapshotLocked())
+}
+
+func (s *Server) handleReset(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodPost {
+		w.WriteHeader(http.StatusMethodNotAllowed)
+		return
+	}
+
+	s.mu.Lock()
+	defer s.mu.Unlock()
+
+	size := s.game.Board.Size()
+	s.game = gomoku.NewGame(size)
 
 	writeJSON(w, http.StatusOK, s.snapshotLocked())
 }
