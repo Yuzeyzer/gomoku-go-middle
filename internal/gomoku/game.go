@@ -3,8 +3,8 @@ package gomoku
 import "errors"
 
 var (
-	ErrGameOver    = errors.New("game is over")
-	ErrInvalidTurn = errors.New("invalid turn stone")
+	ErrGameOver    = errors.New("игра окончена")
+	ErrInvalidTurn = errors.New("недопустимый ход")
 )
 
 // Game хранит состояние игры.
@@ -126,4 +126,71 @@ func (g *Game) collectInDirection(p Point, s Stone, dx, dy int) []Point {
 	}
 
 	return points
+}
+
+// AIMove типо делает ход за White, если сейчас его очередь.
+// Использует простую эвристику: выиграть → заблокировать → сыграть рядом.
+func (g *Game) AIMove() {
+	if g.Winner != Empty || g.Turn != White {
+		return
+	}
+
+	// 1. Попытка выиграть
+	if p, ok := g.findBestMove(White); ok {
+		_ = g.Play(p)
+		return
+	}
+
+	// 2. Попытка заблокировать победу чёрных
+	if p, ok := g.findBestMove(Black); ok {
+		_ = g.Play(p)
+		return
+	}
+
+	// 3. Иначе — первый доступный ход рядом с центром
+	size := g.Board.Size()
+	center := size / 2
+
+	for r := 0; r < size; r++ {
+		for dy := -r; dy <= r; dy++ {
+			for dx := -r; dx <= r; dx++ {
+				x := center + dx
+				y := center + dy
+				p := Point{X: x, Y: y}
+				if g.Board.InBounds(p) {
+					st, _ := g.Board.Get(p)
+					if st == Empty {
+						_ = g.Play(p)
+						return
+					}
+				}
+			}
+		}
+	}
+}
+
+// findBestMove ищет ход, который даёт победу игроку s.
+func (g *Game) findBestMove(s Stone) (Point, bool) {
+	size := g.Board.Size()
+
+	for y := 0; y < size; y++ {
+		for x := 0; x < size; x++ {
+			p := Point{X: x, Y: y}
+			st, _ := g.Board.Get(p)
+			if st != Empty {
+				continue
+			}
+
+			// временно ставим камень
+			g.Board.cells[y][x] = s
+			ok, _ := g.findWinningLine(p, s)
+			g.Board.cells[y][x] = Empty
+
+			if ok {
+				return p, true
+			}
+		}
+	}
+
+	return Point{}, false
 }

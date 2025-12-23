@@ -100,6 +100,9 @@ func (s *Server) handleMove(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	// Ход AI типо
+	s.game.AIMove()
+
 	writeJSON(w, http.StatusOK, s.snapshotLocked())
 }
 
