@@ -1,0 +1,146 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>Gomoku</title>
+  <!-- Стили для Гомоку -->
+  <style>
+    :root { color-scheme: dark; }
+    body { margin: 0; font-family: system-ui, -apple-system, Segoe UI, Roboto, Arial; background:#0b0f14; color:#e7eef7; }
+    .wrap { max-width: 980px; margin: 0 auto; padding: 20px; }
+    h1 { margin: 0 0 8px; font-size: 22px; }
+    .meta { display:flex; gap:16px; align-items:center; margin: 10px 0 16px; }
+    .pill { padding: 6px 10px; border-radius: 999px; background:#121a24; border:1px solid #1e2a3a; font-size: 13px; }
+    .board {
+      display: grid;
+      gap: 6px;
+      user-select: none;
+      touch-action: manipulation;
+      background:#0b0f14;
+      padding: 10px;
+      border-radius: 14px;
+      border: 1px solid #1e2a3a;
+      width: fit-content;
+    }
+    .cell {
+      width: 34px; height: 34px;
+      display:flex; align-items:center; justify-content:center;
+      border-radius: 10px;
+      background:#0f1620;
+      border:1px solid #1b2635;
+      cursor:pointer;
+      font-size: 18px;
+    }
+    .cell:hover { border-color:#2b3f59; }
+    .cell[disabled] { cursor:not-allowed; opacity: .6; }
+    .err { margin-top: 12px; color: #ffb4b4; min-height: 20px; }
+    .hint { margin-top: 6px; color: #9db0c7; font-size: 13px; }
+    button {
+      background:#162233; color:#e7eef7;
+      border:1px solid #26364b;
+      padding: 8px 12px;
+      border-radius: 10px;
+      cursor:pointer;
+    }
+    button:hover { border-color:#375171; }
+  </style>
+  <!-- Стили для Гомоку -->
+</head>
+<body>
+  <div class="wrap">
+    <h1>Gomoku</h1>
+    <div class="meta">
+      <div class="pill" id="turnPill">Turn: …</div>
+      <div class="pill" id="movesPill">Moves: …</div>
+      <button id="refreshBtn" type="button">Refresh</button>
+    </div>
+
+    <div id="board" class="board"></div>
+
+    <div class="err" id="err"></div>
+    <div class="hint">Click a cell to place a stone. (Win detection comes next.)</div>
+  </div>
+
+<script>
+  const elBoard = document.getElementById('board');
+  const elTurn = document.getElementById('turnPill');
+  const elMoves = document.getElementById('movesPill');
+  const elErr = document.getElementById('err');
+  const elRefresh = document.getElementById('refreshBtn');
+
+  let state = null;
+
+  function stoneToChar(s) {
+    if (s === 1) return "●"; // Black
+    if (s === 2) return "○"; // White
+    return "";
+  }
+
+  function stoneToName(s) {
+    if (s === 1) return "Black";
+    if (s === 2) return "White";
+    return "Empty";
+  }
+
+  async function fetchState() {
+    elErr.textContent = "";
+    const res = await fetch('/api/state', {     
+        cache: 'no-store',
+        headers: { 'Cache-Control': 'no-cache' } 
+        }
+    );
+    if (!res.ok) throw new Error('failed to fetch state');
+    state = await res.json();
+    console.log("STATE raw:", state);
+    render();
+  }
+
+  function render() {
+    if (!state) return;
+
+    elTurn.textContent = `Turn: ${stoneToName(state.turn)}`;
+    elMoves.textContent = `Moves: ${state.moves}`;
+    elBoard.style.gridTemplateColumns = `repeat(${state.size}, 34px)`;
+
+    elBoard.innerHTML = "";
+    for (let y = 0; y < state.size; y++) {
+      for (let x = 0; x < state.size; x++) {
+        const s = state.board[y][x];
+        const btn = document.createElement('button');
+        btn.className = 'cell';
+        btn.type = 'button';
+        btn.textContent = stoneToChar(s);
+        if (s !== 0) btn.setAttribute('disabled', 'true');
+
+        btn.addEventListener('click', async () => {
+          try {
+            elErr.textContent = "";
+            const r = await fetch('/api/move', {
+              method: 'POST',
+              headers: {'Content-Type':'application/json'},
+              body: JSON.stringify({x, y})
+            });
+            const data = await r.json();
+            if (!r.ok) {
+              elErr.textContent = data.error || 'move failed';
+              return;
+            }
+            state = data;
+            render();
+          } catch (e) {
+            elErr.textContent = String(e);
+          }
+        });
+
+        elBoard.appendChild(btn);
+      }
+    }
+  }
+
+  elRefresh.addEventListener('click', () => fetchState().catch(e => elErr.textContent = String(e)));
+
+  fetchState().catch(e => elErr.textContent = String(e));
+</script>
+</body>
+</html>

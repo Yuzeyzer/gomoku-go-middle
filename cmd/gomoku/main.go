@@ -1,15 +1,22 @@
 package main
 
 import (
-	"fmt"
+	"log"
+	"net/http"
+	"os"
 
-	"github.com/yuzeyzer/gomoku/internal/gomoku"
+	"github.com/yuzeyzer/gomoku/internal/web"
 )
 
 func main() {
-	// Пример использования доски Гомоку, дожно вернуть "●"
-	b := gomoku.NewBoard(15)
-	_ = b.Set(gomoku.Point{X: 7, Y: 7}, gomoku.Black)
-	stone, _ := b.Get(gomoku.Point{X: 7, Y: 7})
-	fmt.Println(stone)
+	port := os.Getenv("PORT")
+
+	if port == "" {
+		port = "8080"
+	}
+
+	srv := web.NewServer(15)
+
+	log.Printf("Gomoku web UI: http://localhost:%s\n", port)
+	log.Fatal(http.ListenAndServe(":"+port, srv.Handler()))
 }
