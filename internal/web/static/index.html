@@ -9,6 +9,7 @@
     :root { color-scheme: dark; }
     body { margin: 0; font-family: system-ui, -apple-system, Segoe UI, Roboto, Arial; background:#0b0f14; color:#e7eef7; }
     .wrap { max-width: 980px; margin: 0 auto; padding: 20px; }
+    .cell.win { outline: 2px solid #46e58b; border-color: #46e58b; }
     h1 { margin: 0 0 8px; font-size: 22px; }
     .meta { display:flex; gap:16px; align-items:center; margin: 10px 0 16px; }
     .pill { padding: 6px 10px; border-radius: 999px; background:#121a24; border:1px solid #1e2a3a; font-size: 13px; }
@@ -59,7 +60,7 @@
     <div id="board" class="board"></div>
 
     <div class="err" id="err"></div>
-    <div class="hint">Click a cell to place a stone. (Win detection comes next.)</div>
+    <!-- <div class="hint">Click a cell to place a stone. (Win detection comes next.)</div> -->
   </div>
 
 <script>
@@ -104,13 +105,20 @@
     elBoard.style.gridTemplateColumns = `repeat(${state.size}, 34px)`;
 
     elBoard.innerHTML = "";
+
+    const winSet = new Set((state.winningLine || []).map(p => `${p.X},${p.Y}`));
+
     for (let y = 0; y < state.size; y++) {
       for (let x = 0; x < state.size; x++) {
         const s = state.board[y][x];
         const btn = document.createElement('button');
+
         btn.className = 'cell';
         btn.type = 'button';
         btn.textContent = stoneToChar(s);
+
+        if (winSet.has(`${x},${y}`)) btn.classList.add('win');
+
         if (s !== 0) btn.setAttribute('disabled', 'true');
 
         btn.addEventListener('click', async () => {

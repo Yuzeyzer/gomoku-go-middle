@@ -3,30 +3,34 @@ package gomoku
 import "errors"
 
 var (
-	ErrGameOver    = errors.New("игра окончена")
-	ErrInvalidTurn = errors.New("недопустимый ход")
+	ErrGameOver    = errors.New("game is over")
+	ErrInvalidTurn = errors.New("invalid turn stone")
 )
 
-// Game держит доску и чей ход.
+// Game хранит состояние игры.
 type Game struct {
-	Board  *Board
-	Turn   Stone
-	Winner Stone
-	Moves  int
+	Board       *Board
+	Turn        Stone
+	Winner      Stone
+	Moves       int
+	WinningLine []Point // координаты победной линии (обычно 5 точек)
 }
 
-// NewGame создаем новую игру с новой доской.
-// По умолчанию черные ходят первыми.
+// NewGame создаёт новую игру с пустой доской.
+// По умолчанию первыми ходят чёрные.
 func NewGame(size int) *Game {
 	return &Game{
-		Board:  NewBoard(size),
-		Turn:   Black,
-		Winner: Empty,
-		Moves:  0,
+		Board:       NewBoard(size),
+		Turn:        Black,
+		Winner:      Empty,
+		Moves:       0,
+		WinningLine: nil,
 	}
 }
 
-// Play ставим фигуру на доску игрока и переключаем ход.
+// Play делает ход текущего игрока в точку p.
+// После хода проверяется победа (5 в ряд).
+// Если победа найдена — сохраняем WinningLine и игра завершается.
 func (g *Game) Play(p Point) error {
 	if g.Winner != Empty {
 		return ErrGameOver
@@ -41,13 +45,85 @@ func (g *Game) Play(p Point) error {
 
 	g.Moves++
 
+	// Проверяем победу только от последнего хода.
+	if ok, line := g.findWinningLine(p, g.Turn); ok {
+		g.Winner = g.Turn
+		g.WinningLine = line
+		return nil
+	}
+
 	g.Turn = opposite(g.Turn)
 	return nil
 }
 
+// opposite возвращает противоположный цвет камня.
 func opposite(s Stone) Stone {
 	if s == Black {
 		return White
 	}
 	return Black
+}
+
+// findWinningLine проверяет, приводит ли ход к победе (5 подряд),
+// и возвращает координаты победной линии.
+func (g *Game) findWinningLine(p Point, s Stone) (bool, []Point) {
+	// 4 направления: горизонталь, вертикаль, две диагонали
+	dirs := [][2]int{
+		{1, 0},
+		{0, 1},
+		{1, 1},
+		{1, -1},
+	}
+
+	for _, d := range dirs {
+		// Собираем все подряд идущие камни в одной линии (в обе стороны)
+		neg := g.collectInDirection(p, s, -d[0], -d[1]) // от p в минус-направление
+		pos := g.collectInDirection(p, s, d[0], d[1])   // от p в плюс-направление
+
+		// Полная линия: (neg в обратном порядке) + p + pos
+		line := make([]Point, 0, len(neg)+1+len(pos))
+		for i := len(neg) - 1; i >= 0; i-- {
+			line = append(line, neg[i])
+		}
+		line = append(line, p)
+		line = append(line, pos...)
+
+		if len(line) >= 5 {
+			// Для подсветки берём ровно 5 точек вокруг последнего хода.
+			start := len(line)/2 - 2
+			if start < 0 {
+				start = 0
+			}
+			if start+5 > len(line) {
+				start = len(line) - 5
+			}
+			return true, line[start : start+5]
+		}
+	}
+
+	return false, nil
+}
+
+// collectInDirection собирает подряд идущие точки с камнем цвета s
+// в одном направлении от точки p (не включая саму p).
+func (g *Game) collectInDirection(p Point, s Stone, dx, dy int) []Point {
+	points := make([]Point, 0, 8)
+	x, y := p.X+dx, p.Y+dy
+
+	for {
+		pp := Point{X: x, Y: y}
+		if !g.Board.InBounds(pp) {
+			break
+		}
+		st, err := g.Board.Get(pp)
+		if err != nil || st != s {
+			break
+		}
+
+		points = append(points, pp)
+		x += dx
+		y += dy
+	}
+
+	return points
 }

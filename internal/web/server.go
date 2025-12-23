@@ -35,10 +35,12 @@ func (s *Server) Handler() http.Handler {
 }
 
 type stateResponse struct {
-	Size  int              `json:"size"`
-	Turn  gomoku.Stone     `json:"turn"`
-	Moves int              `json:"moves"`
-	Board [][]gomoku.Stone `json:"board"`
+	Size        int              `json:"size"`
+	Turn        gomoku.Stone     `json:"turn"`
+	Winner      gomoku.Stone     `json:"winner"`
+	Moves       int              `json:"moves"`
+	Board       [][]gomoku.Stone `json:"board"`
+	WinningLine []gomoku.Point   `json:"winningLine"`
 }
 
 type moveRequest struct {
@@ -99,10 +101,12 @@ func (s *Server) snapshotLocked() stateResponse {
 	}
 
 	return stateResponse{
-		Size:  size,
-		Turn:  s.game.Turn,
-		Moves: s.game.Moves,
-		Board: board,
+		Size:        size,
+		Turn:        s.game.Turn,
+		Winner:      s.game.Winner,
+		Moves:       s.game.Moves,
+		Board:       board,
+		WinningLine: s.game.WinningLine,
 	}
 }
 
